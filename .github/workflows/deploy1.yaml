@@ -18,11 +18,11 @@ jobs:
         echo "Checking for existing security group..."
         VPC_ID=$(aws ec2 describe-vpcs \
           --filters "Name=isDefault,Values=true" \
-          --query "Vpcs[0].VpcId" --output text --region $AWS_REGION)
+          --query "Vpcs[0].VpcId" --output text --region ap-south-1)
 
         SG_ID=$(aws ec2 describe-security-groups \
           --filters Name=group-name,Values=github-deploy-sg-v2 Name=vpc-id,Values=$VPC_ID \
-          --query "SecurityGroups[0].GroupId" --output text --region $AWS_REGION 2>/dev/null)
+          --query "SecurityGroups[0].GroupId" --output text --region ap-south-1 2>/dev/null)
 
         if [ "$SG_ID" = "None" ] || [ -z "$SG_ID" ]; then
           echo "Security group not found. Creating a new one..."
@@ -30,12 +30,12 @@ jobs:
             --group-name github-deploy-sg-v2 \
             --description "Allow SSH and HTTP access" \
             --vpc-id $VPC_ID \
-            --region $AWS_REGION \
+            --region ap-south-1 \
             --query "GroupId" --output text)
 
-          aws ec2 authorize-security-group-ingress --group-id $SG_ID --protocol tcp --port 22 --cidr 0.0.0.0/0 --region $AWS_REGION
-          aws ec2 authorize-security-group-ingress --group-id $SG_ID --protocol tcp --port 80 --cidr 0.0.0.0/0 --region $AWS_REGION
-          aws ec2 authorize-security-group-ingress --group-id $SG_ID --protocol tcp --port 443 --cidr 0.0.0.0/0 --region $AWS_REGION
+          aws ec2 authorize-security-group-ingress --group-id $SG_ID --protocol tcp --port 22 --cidr 0.0.0.0/0 --region ap-south-1
+          aws ec2 authorize-security-group-ingress --group-id $SG_ID --protocol tcp --port 80 --cidr 0.0.0.0/0 --region ap-south-1
+          aws ec2 authorize-security-group-ingress --group-id $SG_ID --protocol tcp --port 443 --cidr 0.0.0.0/0 --region ap-south-1
         else
           echo "Security group already exists: $SG_ID"
         fi
@@ -44,7 +44,7 @@ jobs:
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_REGION: ${{ secrets.AWS_REGION }}
+        AWS_REGION: ap-south-1
 
     - name: Launch EC2 Instance
       id: launch-ec2
@@ -56,19 +56,19 @@ jobs:
           --instance-type t2.micro \
           --key-name github-deploy-key \
           --security-group-ids $SG_ID \
-          --region $AWS_REGION \
-          --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=GitHubDeploy}]' \
+          --region ap-south-1 \
+          --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=Officekey}]' \
           --query "Instances[0].InstanceId" \
           --output text)
 
         echo "INSTANCE_ID=$INSTANCE_ID" >> $GITHUB_ENV
 
         echo "Waiting for EC2 to be running..."
-        aws ec2 wait instance-running --instance-ids $INSTANCE_ID --region $AWS_REGION
+        aws ec2 wait instance-running --instance-ids $INSTANCE_ID --region ap-south-1
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_REGION: ${{ secrets.AWS_REGION }}
+        AWS_REGION: ap-south-1
 
     - name: Get Public IP
       id: get-ip
@@ -76,7 +76,7 @@ jobs:
         PUBLIC_IP=$(aws ec2 describe-instances \
           --filters "Name=tag:Name,Values=GitHubDeploy" \
           --query "Reservations[0].Instances[0].PublicIpAddress" \
-          --region $AWS_REGION \
+          --region ap-south-1 \
           --output text)
 
         echo "public_ip=$PUBLIC_IP" >> $GITHUB_OUTPUT
@@ -84,19 +84,19 @@ jobs:
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_REGION: ${{ secrets.AWS_REGION }}
+        AWS_REGION: ap-south-1
 
     - name: Save EC2 Private Key
       run: |
-        echo "${{ secrets.EC2_KEY }}" > ec2-key.pem
-        chmod 400 ec2-key.pem
+        echo "${{ secrets.Officekey }}" > Officekey.pem
+        chmod 400 Officekey.pem
 
     - name: Wait for SSH to be Ready
       run: sleep 30
 
     - name: Install Apache, PHP 8.1, and MySQL
       run: |
-        ssh -o StrictHostKeyChecking=no -i ec2-key.pem ubuntu@$PUBLIC_IP <<EOF
+        ssh -o StrictHostKeyChecking=no -i Officekey.pem ubuntu@$PUBLIC_IP <<EOF
           sudo apt update
           sudo apt install -y apache2 php8.1 php8.1-cli php8.1-mysql mysql-server unzip git
           sudo systemctl enable --now apache2
@@ -105,7 +105,7 @@ jobs:
 
     - name: Clone and Deploy Your PHP Website
       run: |
-        ssh -o StrictHostKeyChecking=no -i ec2-key.pem ubuntu@$PUBLIC_IP <<EOF
+        ssh -o StrictHostKeyChecking=no -i Officekey.pem ubuntu@$PUBLIC_IP <<EOF
           cd /tmp
           git clone https://github.com/AryanSharma2206/gym-website.git site
           sudo rm -rf /var/www/html/*
@@ -122,4 +122,4 @@ jobs:
     #   env:
     #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
     #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-    #     AWS_REGION: ${{ secrets.AWS_REGION }} yogesh
+    #     AWS_REGION: ${{ secrets.AWS_REGION }} yogeshchoudhary
