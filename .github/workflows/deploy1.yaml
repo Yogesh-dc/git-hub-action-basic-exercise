@@ -24,7 +24,7 @@ jobs:
           --filters Name=group-name,Values=github-deploy-sg-v2 Name=vpc-id,Values=$VPC_ID \
           --query "SecurityGroups[0].GroupId" --output text --region ap-south-1 2>/dev/null)
 
-        if [ "$SG_ID" = "None" ] || [ -z "$SG_ID" ]; then
+        if [ -z "$SG_ID" ] || [ "$SG_ID" == "None" ] || [ "$SG_ID" == "null" ]; then
           echo "Security group not found. Creating a new one..."
           SG_ID=$(aws ec2 create-security-group \
             --group-name github-deploy-sg-v2 \
@@ -44,7 +44,6 @@ jobs:
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_REGION: ap-south-1
 
     - name: Launch EC2 Instance
       id: launch-ec2
@@ -54,7 +53,7 @@ jobs:
           --image-id ami-03bb6d83c60fc5f7c \
           --count 1 \
           --instance-type t2.micro \
-          --key-name github-deploy-key \
+          --key-name Officekey \
           --security-group-ids $SG_ID \
           --region ap-south-1 \
           --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=Officekey}]' \
@@ -74,7 +73,7 @@ jobs:
       id: get-ip
       run: |
         PUBLIC_IP=$(aws ec2 describe-instances \
-          --filters "Name=tag:Name,Values=GitHubDeploy" \
+          --filters "Name=tag:Name,Values=Officekey" \
           --query "Reservations[0].Instances[0].PublicIpAddress" \
           --region ap-south-1 \
           --output text)
